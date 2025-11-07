@@ -1,0 +1,135 @@
+﻿@page "/orders"
+
+@inherits AuthChekComponent
+@inject NavigationManager Navigation
+@inject OrderManager orderManager
+@inject UserManager userManager 
+
+@rendermode InteractiveServer
+
+
+
+<AuthorizeView>
+    <Authorized>
+        <h3>Мои заказы</h3>
+<div class="mt-3">
+
+    
+    @if (orders == null || orders.Count == 0)
+    {
+        <p>У вас пока нет заказов</p>
+    }
+    else
+    {    
+        <table class="table">
+  <thead>
+    <tr>
+      <th scope="col"></th>
+      <th scope="col">Услуга</th>
+      <th scope="col">Дата заказа</th>
+      <th scope="col">Статус</th>
+      <th scope="col">Сумма</th>
+      <th scope="col"></th>      
+    </tr>
+  </thead>
+<tbody>
+@foreach (var order in orders)
+{
+    <tr>
+        <th scope="row">@order.Id</th>
+        <td>@order.MedicalService.Name</td>
+        <td>@order.Date.ToString("dd.MM.yyyy")</td>
+        <td>@order.OrderStatus</td>
+        <td>@order.TotalAmount</td>        
+        <td>
+           
+            <button type="button"
+                    class="btn btn-primary btn-sm"
+                    @onclick="() => OnOrderDelete(order.Id)">
+                Удалить
+            </button>
+        </td>
+    </tr>
+}
+
+</tbody>
+</table>
+
+<p class="mt-2">Всего заказов:  @orders.Count</p>
+<div class="mt-5 bg-success text-white bg-opacity-75">
+    @message
+</div>
+    }
+</div>
+
+       
+    </Authorized>
+</AuthorizeView>
+
+<AuthorizeView>
+
+    <NotAuthorized>
+        <h3>Просмотрть заказы может только авторизованный пользователь</h3>
+    </NotAuthorized>
+</AuthorizeView>
+
+
+@code 
+{
+    List<OrderOutputModel> orders;
+
+    UserOutputModel outputModel;
+
+    public string message = string.Empty;
+
+
+    //  не успевает подгружать
+    // protected override void OnInitialized()
+    // {
+    //     if (CurrentUser?.Id < 0)
+    //         {
+    //             outputModel = userManager.GetById(CurrentUser.Id);
+    //             orders = orderManager.GetByUserId(outputModel.Id);
+    //         }
+    //         else
+    //         {
+    //             message = "Пользователь не авторизован или данные ещё не загружены.";
+    //         }   
+    //        StateHasChanged();
+    // }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            if (CurrentUser?.Id != 0)
+            {
+                outputModel = userManager.GetById(CurrentUser.Id);
+                orders = orderManager.GetByUserId(outputModel.Id);
+            }
+            else
+            {
+                message = "Пользователь не авторизован или данные ещё не загружены.";
+            }
+
+            StateHasChanged(); 
+        }
+    }
+
+    private void OnOrderDelete(int id)
+    {
+        if(orderManager.Delete(id))
+        {
+            message = $"Заказ Id: {id} успешно удален";            
+        }
+        else
+        {
+            message = "Ошибка удаления заказа";
+        }
+        
+        Navigation.NavigateTo("/orders", forceLoad: true);        
+
+    }
+}
+        
+

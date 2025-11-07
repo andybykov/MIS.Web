@@ -1,0 +1,148 @@
+﻿@page "/login"
+@using System.Security.Claims
+@inject NavigationManager Navigation
+
+<div class="row justify-content-center min-vh-100">
+    <div class="col-md-6 col-lg-4">
+        <h3 class="text-center mb-4">Авторизация</h3>
+
+        <div class="card shadow p-lg-4">
+            <div class="card-body">
+                <EditForm Model="loginIn"
+                          OnValidSubmit="StartLogin"
+                          FormName="Login">
+                    <DataAnnotationsValidator />
+
+                    <div class="mb-3">
+                        <label class="form-label">Логин *</label>
+                        <InputText @bind-Value="loginIn.Login"
+                                   id="loginInput"
+                                   class="form-control"
+                                   placeholder=""></InputText>
+                        <ValidationMessage For="@(() => loginIn.Login)" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Пароль *</label>
+                        <InputText @bind-Value="loginIn.Password"
+                                   type="password"
+                                   id="passwordInput"
+                                   class="form-control"
+                                   placeholder=""></InputText>
+                        <ValidationMessage For="@(() => loginIn.Password)" />
+                    </div>
+
+                    <div class="d-flex justify-content-center m-0">
+                        <button type="submit"
+                                class="btn btn-primary w-40">
+                            Войти
+                        </button>
+                    </div>
+
+                    @if (loginFail)
+                    {
+                        <div class="alert alert-danger mt-3"
+                             role="alert">
+                            Логин или пароль не верный!
+                        </div>
+                    }
+                </EditForm>
+
+                
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Inject] 
+    public HttpClient Http { get; set; } = default!;
+
+    [CascadingParameter]
+    public HttpContext httpContext { get; set; }
+
+    [SupplyParameterFromForm]
+    public LoginModel loginIn { get; set; } = new LoginModel();
+
+    [SupplyParameterFromQuery] 
+    public string ReturnUrl { get; set; } = "/";
+
+    [Inject]
+    public UserManager userService { get; set; }
+
+    private bool loginFail = false;
+
+    protected override void OnInitialized()
+    {
+        try
+        {
+            if (userService.GetByLogin("admin") == null)
+            {
+                userService.Add(new UserInputModel
+                {
+                    Email = "admin@a.com",
+                    FirstName = "admin",
+                    Password = "admin",
+                    Role = UserRole.Admin
+                });
+            }
+        }
+        catch { }
+    }
+
+    public async void StartLogin()
+    {
+        if (validateLogin(loginIn))
+        {
+            loginFail = false;
+            var user = userService.GetByLogin(loginIn.Login);
+
+            var claims = new List<Claim>
+            {
+                //new Claim(ClaimTypes.Id, user.Id),
+                new Claim(ClaimTypes.Name, user.Email),
+                new Claim(ClaimTypes.Role, user.Role.ToString())
+            };
+
+            var identity = new ClaimsIdentity(
+                claims,
+                CookieAuthenticationDefaults.AuthenticationScheme);
+
+            var principal = new ClaimsPrincipal(identity);
+            await httpContext.SignInAsync(principal);
+
+            // аутентифицируем пользователя и создаем cookie в браузере
+            // httpContext.Response.Redirect(ReturnUrl);
+
+            try
+            {
+                // await Task.Delay(50);
+                Navigation.NavigateTo(ReturnUrl, forceLoad: true);
+            }
+            catch (Microsoft.AspNetCore.Components.NavigationException)
+            {
+                // Ничего не делаем
+            }
+        }
+        else
+        {
+            loginFail = true;
+        }
+    }
+
+    private bool validateLogin(LoginModel loginModel)
+    {
+        try
+        {
+            return userService.AuthUser(new LoginModel
+            {
+                Login = loginModel.Login,
+                Password = loginModel.Password
+            });
+        }
+        catch (Exception)
+        {
+            return false;
+        }
+    }
+}

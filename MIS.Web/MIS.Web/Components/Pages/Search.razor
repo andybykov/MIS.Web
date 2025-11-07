@@ -1,0 +1,249 @@
+﻿@page "/search"
+@using MIS.Core
+@using MIS.Core.OutputModels
+@using MIS.Core.Dtos
+@using MIS.Web.Components.Cards
+@using MIS.Web.Components.Layout
+@inject MedicalServiceManager MedicalServiceManager
+@inject OrderManager OrderManager
+@inject NavigationManager Navigation
+
+@rendermode InteractiveServer
+
+<h3>Поиск медицинских услуг</h3>
+
+<div class="container-fluid">
+    <!-- Поиск и фильтры (остаются без изменений) -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="input-group">
+                <input type="text" class="form-control" placeholder="Введите название услуги..." 
+                       @bind="searchTerm" @bind:event="oninput" />
+                <button class="btn btn-outline-secondary" type="button" @onclick="ClearSearch">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <select class="form-select" @bind="priceFilter" @bind:event="onchange">
+                <option value="all">Все цены</option>
+                <option value="low">До 1000 руб.</option>
+                <option value="medium">1000 - 3000 руб.</option>
+                <option value="high">Выше 3000 руб.</option>
+            </select>
+        </div>
+        <div class="col-md-3">
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" @bind="showOnlyAvailable" />
+                <label class="form-check-label">Только доступные</label>
+            </div>
+        </div>
+    </div>
+
+    <!-- Карточки услуг -->
+    @if (services == null)
+    {    
+        <div class="text-center">
+            <div class="spinner-border text-primary" role="status">
+            </div>
+            <p>Ничего нет...</p>
+        </div>
+    }
+    else if (filteredServices.Any())
+    {
+        <div class="row">
+            @foreach (var service in filteredServices)
+            {
+                <div class="col-lg-4 col-md-6 mb-4">
+                    <div class="card h-100 service-card">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">@service.Name</h5>
+                        </div>
+                        <div class="card-body">
+                            <p class="card-text text-muted">@service.Description</p>
+                            <div class="service-price mb-3">
+                                <span class="h4 text-primary">@service.Price.ToString("C")</span>
+                            </div>
+                        </div>
+                        <div class="card-footer bg-transparent">
+                            <div class="d-grid gap-2">
+                                <button class="btn btn-outline-primary btn-sm" 
+                                        @onclick="() => ShowServiceDetails(service)">
+                                    <i class="fas fa-info-circle me-1"></i>Подробнее
+                                </button>
+                                <button class="btn btn-success btn-sm" 
+                                        @onclick="() => AddToOrder(service)"
+                                        disabled="@(isAddingOrder.Contains(service.Id))">
+                                    @if (isAddingOrder.Contains(service.Id))
+                                    {
+                                        <span>
+                                            <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                                            Добавляем...
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span>
+                                            <i class="fas fa-cart-plus me-1"></i>Добавить в заказ
+                                        </span>
+                                    }
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+    else
+    {
+        <div class="alert alert-info text-center">
+            <i class="fas fa-search fa-2x mb-3"></i>
+            <h5>Услуги не найдены</h5>
+            <p>Попробуйте изменить параметры поиска</p>
+            <button class="btn btn-outline-primary" @onclick="ClearSearch">
+                Сбросить фильтры
+            </button>
+        </div>
+    }
+</div>
+
+<!-- Используем вынесенный компонент модального окна -->
+<ServiceModal 
+    Show="showServiceModal" 
+    Service="selectedService" 
+    IsAdding="isAddingFromModal"
+    OnClose="CloseServiceModal" 
+    OnAddToOrderClicked="AddToOrderFromModal" />
+
+@code {
+    private List<MedicalServiceOutputModel> services = new();
+    private List<MedicalServiceOutputModel> filteredServices = new();
+    private MedicalServiceOutputModel? selectedService = null;
+    
+    private string searchTerm = string.Empty;
+    private string priceFilter = "all";
+    private bool showOnlyAvailable = false;
+    private bool showServiceModal = false;
+    private bool isAddingFromModal = false;
+    
+    private HashSet<int> isAddingOrder = new();
+
+    protected override void OnInitialized()
+    {
+        services = MedicalServiceManager.GetAll();
+        FilterServices();
+    }
+
+    private void FilterServices()
+    {
+        // Логика фильтрации без изменений
+        var query = services.AsEnumerable();
+
+        if (!string.IsNullOrWhiteSpace(searchTerm))
+        {
+            query = query.Where(s =>
+                s.Name.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+                (s.Description != null && s.Description.Contains(searchTerm, StringComparison.OrdinalIgnoreCase))
+            );
+        }
+
+        query = priceFilter switch
+        {
+            "low" => query.Where(s => s.Price <= 1000),
+            "medium" => query.Where(s => s.Price > 1000 && s.Price <= 3000),
+            "high" => query.Where(s => s.Price > 3000),
+            _ => query
+        };
+
+        if (showOnlyAvailable)
+        {
+            query = query.Where(s => s.Price > 0);
+        }
+
+        filteredServices = query.ToList();
+    }
+
+    private void ShowServiceDetails(MedicalServiceOutputModel service)
+    {
+        selectedService = service;
+        showServiceModal = true;
+    }
+
+    private void CloseServiceModal()
+    {
+        showServiceModal = false;
+        selectedService = null;
+        isAddingFromModal = false;
+    }
+
+    private void AddToOrder(MedicalServiceOutputModel service)
+    {
+        isAddingOrder.Add(service.Id);
+        StateHasChanged();
+
+        try
+        {
+            var currentUserId = 15;
+            var orderInput = new OrderInputModel
+            {
+                Date = DateTime.Now,
+                OrderStatus = OrderStatus.New,                
+                TotalAmount = service.Price,
+                UserId = currentUserId,
+                MedicalServiceId = service.Id
+            };
+
+            var result = OrderManager.Add(orderInput);
+            Console.WriteLine($"Услуга '{service.Name}' добавлена в заказ #{result.Id}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Ошибка при добавлении в заказ: {ex.Message}");
+        }
+        finally
+        {
+            isAddingOrder.Remove(service.Id);
+            StateHasChanged();
+        }
+    }
+
+    private async Task AddToOrderFromModal(MedicalServiceOutputModel service)
+    {
+        isAddingFromModal = true;
+        StateHasChanged();
+
+        AddToOrder(service);
+        
+        if (isAddingOrder.Contains(service.Id))
+        {
+            isAddingOrder.Remove(service.Id);
+        }
+        
+        CloseServiceModal();
+    }
+
+    private void ClearSearch()
+    {
+        searchTerm = string.Empty;
+        priceFilter = "all";
+        showOnlyAvailable = false;
+        FilterServices();
+    }
+}
+
+<style>
+    .service-card {
+        transition: transform 0.2s, box-shadow 0.2s;
+        border: 1px solid #e9ecef;
+    }
+    
+    .service-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+    
+    .service-price {
+        font-weight: bold;
+    }
+</style>

@@ -1,0 +1,68 @@
+﻿@* Для админов / Добавление новой услуги *@
+@inject MedicalServiceManager medicalServiceManager
+@inject NavigationManager Navigation
+
+@rendermode InteractiveServer
+
+<div class="card">   
+
+    <EditForm Model="inputModel" OnValidSubmit="HandleValidSubmit" class="m-0">
+        <DataAnnotationsValidator />
+        @* <ValidationSummary class="alert alert-danger" /> *@
+
+        <div class="card-body">
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <div class="mb-2">
+                        <strong class="text-muted d-block">Название услуги:</strong>
+                        <InputText @bind-Value="inputModel.Name" id="Name" class="form-control form-control-sm"
+                                   placeholder="Введите название" />
+                        <ValidationMessage For="() => inputModel.Name" class="text-danger small" />
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-2">
+                        <strong class="text-muted d-block">Цена, руб:</strong>
+                        <InputNumber @bind-Value="inputModel.Price" id="Price" class="form-control form-control-sm" />
+                        <ValidationMessage For="() => inputModel.Price" class="text-danger small" />
+                    </div>
+                </div>
+            </div>
+
+            <div class="row border-top pt-3">
+                <div class="col-12">
+                    <strong class="text-muted d-block">Описание:</strong>
+                    <InputTextArea @bind-Value="inputModel.Description" id="Description" class="form-control form-control-sm"
+                                   rows="3" placeholder="Краткое описание услуги" />
+                    <ValidationMessage For="() => inputModel.Description" class="text-danger small" />
+                </div>
+            </div>
+        </div>
+
+        <div class="card-footer bg-transparent">
+            <div class="d-flex justify-content-end gap-2">                
+                    <button type="submit" class="btn btn-success btn-sm" enabled>
+                        Добавить услугу
+                    </button>                                                                    
+            </div>
+        </div>
+    </EditForm>
+</div>
+
+@code {
+    private MedicalServiceInputModel inputModel = new();
+
+    [Parameter]
+    public EventCallback<int> OnServiceCreated { get; set; }      
+
+
+    private async Task HandleValidSubmit()
+    {
+        var newId = medicalServiceManager.Add(inputModel);
+        if (newId.Id > 0)
+        {
+            await OnServiceCreated.InvokeAsync(newId.Id);
+            StateHasChanged();
+        }
+    }    
+}

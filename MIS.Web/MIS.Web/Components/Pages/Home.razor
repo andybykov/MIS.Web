@@ -1,0 +1,17 @@
+﻿@page "/"
+@inject NavigationManager Navigation
+@rendermode InteractiveServer
+
+@code {
+    protected override void OnInitialized()
+    {
+        try
+        {           
+            Navigation.NavigateTo("/services", forceLoad: true);
+        }
+        catch (Microsoft.AspNetCore.Components.NavigationException)
+        {
+            // Ничего не делаем
+        }
+    }       
+}

@@ -1,0 +1,45 @@
+﻿@using Microsoft.AspNetCore.Components.Web
+
+@rendermode RenderMode.InteractiveServer
+
+
+<div class="input-group mb-3">
+  <button class="btn btn-secondary" type="button" @onclick="ClearSearch">Очистить</button>
+  <div class="input-group-prepend">
+    <span class="input-group-text" id="basic-addon1">Поиск</span>       
+  </div>
+    <input type="text" class="form-control" placeholder="введите фразу для поиска" aria-describedby="basic-addon1"
+           @oninput="ChangeValue" value="@search">
+</div>
+@code 
+{
+    public string? search;
+
+    [Parameter]
+    // свойство-параметр Search, которое хранит данные в переменной search
+    public string? Search
+    {
+        get { return search; }
+        set { search = value; }
+    }
+
+    [Parameter]
+    /*
+     *  При изменении значения вызывается метод ChangeValue, в котором переустанавливается 
+     *  значение переменной search и вызывается коллбек SearchChanged.
+     */
+    public EventCallback<string> SearchChanged { get; set; }
+
+    async Task ChangeValue(ChangeEventArgs e)
+    {
+        search = e?.Value?.ToString();
+        await SearchChanged.InvokeAsync(search);
+    }
+
+    private async Task ClearSearch()
+    {
+        search = string.Empty;
+        await SearchChanged.InvokeAsync(search); 
+        StateHasChanged();
+    }
+}

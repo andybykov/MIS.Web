@@ -1,0 +1,66 @@
+﻿@using MIS.Web.Components
+@using MIS.Web.Components.Cards
+@using MIS.Web.Components.Layout
+
+@inherits LayoutComponentBase
+
+@inject UserManager userManager
+
+<div class="page">
+    <div class="sidebar">
+        <NavMenu />
+    </div>
+
+    <main>
+        <div class="top-row px-4">
+            <AuthorizeView>
+                <Authorized Context="authState"> 
+                    <a>
+                        <b>@authState.User.Identity?.Name</b>                   
+                         UserId: @userOm.Id 
+                    </a>
+                    <a href="/logout">Выход</a>                    
+                </Authorized>
+                <NotAuthorized>
+                    <a href="/login">Войти</a>
+                    <a href="/registration">Регистрация</a>
+                </NotAuthorized>
+            </AuthorizeView>    
+</div>
+
+        <article class="content px-4">
+            @Body
+            
+        </article>
+    </main>
+</div>
+
+@* <div id="blazor-error-ui">
+    An unhandled error has occurred.
+    <a href="" class="reload">Reload</a>
+    <a class="dismiss">🗙</a>
+</div> *@
+
+@code
+{
+    [CascadingParameter]
+    private Task<AuthenticationState>? authenticationState { get; set; }
+
+    UserOutputModel userOm = new UserOutputModel();
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (authenticationState is not null)
+        {
+            var authState = await authenticationState;
+            var user = authState?.User;
+
+            if (user?.Identity is not null && user.Identity.IsAuthenticated)
+            {
+                var currentUser = user.Identity.Name?.ToString();
+                userOm = userManager.GetByLogin(currentUser);
+            }
+        }
+    }
+}

@@ -1,0 +1,206 @@
+﻿@page "/registration"
+@using MIS.Core
+@using MIS.Core.Dtos
+@using MIS.Core.OutputModels
+@using MIS.Core.InputModels
+
+@inject UserManager userManager
+@inject NavigationManager Navigation
+
+@rendermode InteractiveServer
+
+<h3 class="text-center mb-4">Регистрация</h3>
+
+<form>
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            <div class="card shadow p-lg-4">
+
+
+
+                <div class="card-body">
+                    <EditForm Model="user" OnValidSubmit="OnSubmit" FormName="userRegistration">
+                        <DataAnnotationsValidator />
+                        @* <ValidationSummary class="alert alert-danger" /> *@
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Имя *</label>
+                                    <InputText @bind-Value="user.FirstName" class="form-control" />
+                                    <ValidationMessage For="@(() => user.FirstName)" />
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Фамилия *</label>
+                                    <InputText @bind-Value="user.LastName" class="form-control" />
+                                    <ValidationMessage For="@(() => user.LastName)" />
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Email -->
+                        <div class="mb-3">
+                            <label class="form-label">Email *</label>
+                            <InputText @bind-Value="user.Email"
+                                       @bind-Value:after="CheckEmail"
+                                       class="form-control" />
+                            <ValidationMessage For="@(() => user.Email)" />
+                            @if (emailExists)
+                            {
+                                <div class="validation-message text-danger">Этот Email уже занят</div>
+                            }
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label" for="">Пароль *</label>
+                            <InputText type="password" @bind-Value="user.Password" class="form-control" />
+                            <ValidationMessage For="@(() => user.Password)" />
+                        </div>
+
+                        <!-- Телефон -->
+                        <div class="mb-3">
+                            <label class="form-label">Телефон</label>
+                            <InputText @bind-Value="user.PhoneNumber"
+                                       @bind-Value:after="CheckPhone"
+                                       class="form-control" />
+                            <ValidationMessage For="@(() => user.PhoneNumber)" />
+                            @if (phoneExists)
+                            {
+                                <div class="validation-message text-danger">Этот телефон уже занят</div>
+                            }
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Дата рождения</label>
+                            <InputDate @bind-Value="user.DateOfBirth" class="form-control" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Пол</label>
+                            <InputSelect @bind-Value="user.Gender" class="form-select">
+                                <option value="@Gender.Unknown">Не указан</option>
+                                <option value="@Gender.Male">Мужской</option>
+                                <option value="@Gender.Female">Женский</option>
+                            </InputSelect>
+                        </div>
+
+                        <div class="d-flex justify-content-center m-0">
+                            <button type="submit" class="btn btn-primary w-40" disabled="@(isLoading || emailExists || phoneExists)">
+                                @if (isLoading)
+                                {
+                                    <span>Регистрация...</span>
+                                }
+                                else
+                                {
+                                    <span>Зарегистрироваться</span>
+                                }
+                            </button>
+                        </div>
+
+                    </EditForm>
+
+                    @if (!string.IsNullOrEmpty(message))
+                    {
+                        <div class="alert @alertClass mt-3">
+                            @message
+                        </div>
+                    }
+                </div>
+
+
+
+            </div>
+        </div>
+    </div>
+</form>
+
+@code {
+    private UserInputModel user = new();
+
+    private List<UserOutputModel> userOutputModels = new();
+
+    private bool isLoading = false;
+
+    private string message = string.Empty;
+
+    private string alertClass = "alert-success";
+
+    private bool emailExists = false;
+
+    private bool phoneExists = false;
+
+    protected override void OnInitialized()
+    {
+        user = new UserInputModel
+        {
+            DateOfBirth = DateTime.Now.AddYears(-30),
+            Gender = Gender.Unknown,
+            IsRemoved = false
+        };
+    }
+
+    private async Task CheckEmail()
+    {
+        if (string.IsNullOrWhiteSpace(user.Email))
+        {
+            emailExists = false;
+        }
+        else
+        {
+            var all = userManager.GetAllWithRemoved();
+            emailExists = all.Any(u => userManager.CheckEmailUnique(user, u));
+        }
+        StateHasChanged();
+    }
+
+
+    private async Task CheckPhone()
+    {
+        if (string.IsNullOrWhiteSpace(user.PhoneNumber))
+        {
+            phoneExists = false;
+        }
+        else
+        {
+            var all = userManager.GetAllWithRemoved();
+            phoneExists = all.Any(u => userManager.CheckPhoneUnique(user, u));
+        }
+        StateHasChanged();
+    }
+
+    private async Task OnSubmit()
+    {
+        if (emailExists || phoneExists)
+        {
+            message = "Исправьте ошибки в форме";
+            alertClass = "alert-danger";
+            return;
+        }
+
+        isLoading = true;
+        message = string.Empty;
+        StateHasChanged();
+
+        try
+        {
+            var result = userManager.Add(user);
+            message = $"Пациент {result.FullName} успешно зарегистрирован! ID: {result.Id}";
+            alertClass = "alert-success";
+
+            await Task.Delay(3000);
+            Navigation.NavigateTo("/", forceLoad: true);
+        }
+        catch (Exception ex)
+        {
+            message = $"Ошибка регистрации: {ex.Message}";
+            alertClass = "alert-danger";
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+}

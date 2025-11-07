@@ -1,0 +1,94 @@
+﻿@* Для пользователей *@
+@inject MedicalServiceManager medicalServiceManager
+@inject NavigationManager Navigation
+
+@rendermode InteractiveServer
+
+@if (medicalServiceOm == null)
+{
+    return;
+}
+
+<span class="badge bg-secondary me-2">ID: @medicalServiceOm?.Id</span>
+@if (medicalServiceOm?.IsRemoved == true)
+{
+    <span class="badge bg-danger">Услуга удалена</span>
+}
+
+<div class="card-body">
+    <div class="row mb-3">
+        <div class="col-md-6">
+            <div class="mb-2">
+                <strong class="text-muted d-block">Название услуги:</strong>
+                
+                    <span class="fs-5 text-dark">
+                        <span class="badge bg-secondary"></span>
+                        @medicalServiceOm?.Name
+                    </span>
+                
+            </div>
+
+            
+        </div>
+
+        <div class="col-md-6">
+            <div class="mb-2">
+                <strong class="text-muted d-block">Цена:</strong>
+               
+                    <span>
+                        <i class="fas fa-dollar-sign me-2 text-secondary"></i>
+                        @medicalServiceOm?.Price.ToString("C")
+                    </span>
+                
+            </div>
+        </div>
+    </div>
+
+    <div class="row border-top pt-3">
+        <div class="col-12">
+            <div class="mb-2">
+                <strong class="text-muted d-block">Описание:</strong>
+                    <div class="text-black mt-2 mb-0">
+                       
+                        @if (string.IsNullOrEmpty(medicalServiceOm?.Description))
+                        {
+                            <span class="text-muted">Описание отсутствует</span>
+                        }
+                        else
+                        {
+                            @medicalServiceOm.Description
+                        }
+                    </div>               
+            </div>
+        </div>
+    </div>
+
+
+</div>
+
+
+@code {
+    private MedicalServiceOutputModel? medicalServiceOm;
+
+
+    [Parameter]
+    public int MedicalServiceId { get; set; }
+
+    [Parameter]
+    public EventCallback<MouseEventArgs> OnClickCallback { get; set; } 
+
+    [Parameter]
+    public EventCallback<int> OnMedicalServiceRemoved { get; set; } = EventCallback<int>.Empty;
+
+    [Parameter]
+    public EventCallback<int> OnMedicalServiceDeleted { get; set; } = EventCallback<int>.Empty;
+
+    [Parameter]
+    public EventCallback<int> OnMedicalServiceUpdated { get; set; } = EventCallback<int>.Empty;
+
+    protected override void OnInitialized()
+    {
+        medicalServiceOm = medicalServiceManager.GetById(MedicalServiceId);
+        base.OnInitialized();
+    }    
+}

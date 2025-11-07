@@ -1,0 +1,58 @@
+﻿@namespace MIS.Web.Components
+
+@inject NavigationManager Navigation
+
+@rendermode InteractiveServer
+
+
+<div class="modal @(IsVisible ? "show d-block" : "d-none")" style="background-color: rgba(0,0,0,0.5)" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">           
+            <div class="modal-header">
+                <h5 class="modal-title">@Title</h5>                
+                <button type="button" class="btn-close" @onclick="Close"></button>
+            </div>          
+            <div class="modal-body">
+                @if (DynamicComponentType != null)
+                {
+                    
+                    <DynamicComponent Type="DynamicComponentType" Parameters="DynamicParameters" />
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    
+    public bool IsVisible { get; private set; }
+
+    
+    public string Title { get; private set; } = string.Empty;
+
+    
+    public Type? DynamicComponentType { get; private set; }
+
+   
+    public Dictionary<string, object>? DynamicParameters { get; private set; }
+
+       
+    public async Task ShowAsync<T>(string title, Dictionary<string, object>? parameters = null) where T : ComponentBase
+    {
+        Title = title; 
+        DynamicComponentType = typeof(T); 
+        DynamicParameters = parameters; 
+        IsVisible = true; 
+        StateHasChanged(); 
+        await Task.CompletedTask; // Возвращаем завершенную задачу
+    }
+
+    
+    public void Close()
+    {
+        IsVisible = false; 
+        DynamicComponentType = null; 
+        DynamicParameters = null; 
+        Navigation.NavigateTo(Navigation.Uri, forceLoad: true);               
+    }
+}

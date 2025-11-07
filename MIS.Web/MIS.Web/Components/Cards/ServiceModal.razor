@@ -1,0 +1,94 @@
+﻿@using MIS.Core.OutputModels
+@using Microsoft.AspNetCore.Components.Web
+
+<div class="modal @(Show ? "show d-block" : "d-none")" style="background-color: rgba(0,0,0,0.5)" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">@Service?.Name</h5>
+                <button type="button" class="btn-close" @onclick="Close"></button>
+            </div>
+            <div class="modal-body">
+                @if (Service != null)
+                {
+                    <div class="row">
+                        <div class="col-md-8">
+                            <h6>Описание услуги:</h6>
+                            <p class="text-muted">@Service.Description</p>
+
+                            <div class="mt-4">
+                                <h6>Детали:</h6>
+                                <ul class="list-unstyled">
+                                    <li><strong>Цена:</strong> <span class="text-success h5">@Service.Price.ToString("C")</span></li>
+                                    <li><strong>ID услуги:</strong> @Service.Id</li>
+                                    @if (Service.Orders != null && Service.Orders.Any())
+                                    {
+                                        <li><strong>Заказов:</strong> @Service.Orders.Count</li>
+                                    }
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card bg-light">
+                                <div class="card-body text-center">
+                                    <h5>@Service.Price.ToString("C")</h5>
+                                    <button class="btn btn-success w-100 mt-3"
+                                            @onclick="OnAddToOrder"
+                                            disabled="@IsAdding">
+                                        @if (IsAdding)
+                                        {
+                                            <span>
+                                                <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                                                Добавляем...
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span>
+                                                <i class="fas fa-cart-plus me-1"></i>Добавить в заказ
+                                            </span>
+                                        }
+                                    </button>
+                                    <small class="text-muted d-block mt-2">Мгновенное бронирование</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" @onclick="Close">Закрыть</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public bool Show { get; set; }
+
+    [Parameter]
+    public MedicalServiceOutputModel? Service { get; set; }
+
+    [Parameter]
+    public bool IsAdding { get; set; }
+
+    [Parameter]
+    public EventCallback OnClose { get; set; }
+
+    [Parameter]
+    public EventCallback<MedicalServiceOutputModel> OnAddToOrderClicked { get; set; }
+
+    private void Close()
+    {
+        OnClose.InvokeAsync();
+    }
+
+    private async Task OnAddToOrder()
+    {
+        if (Service != null)
+        {
+            await OnAddToOrderClicked.InvokeAsync(Service);
+        }
+    }
+}

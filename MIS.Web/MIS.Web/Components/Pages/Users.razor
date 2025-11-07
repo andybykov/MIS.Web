@@ -1,0 +1,213 @@
+﻿@* @page "/users/{Id:int}" *@
+@page "/users"
+@using MIS.Web.Components
+@using MIS.Web.Components.Cards
+@using MIS.Web.Components.Layout
+
+@inherits AuthChekComponent
+@inject NavigationManager Navigation
+@inject UserManager userManager
+
+@rendermode InteractiveServer
+
+
+@if (!IsAdmin)
+{
+    <div class="alert alert-warning">
+        Страница доступна только для администраторов
+    </div>
+}
+else
+{
+<!-- Компонент поиска -->
+<SearchComponent @bind-Search="searchText" />
+
+<!-- Компонент модального окна -->
+<Modal @ref="modal" />
+
+
+<h3>Пользователи</h3>
+<div class="mt-3">
+    <p><strong>@searchText</strong></p> <!-- Выводим поисковый запрос -->
+    
+    @if (allUsers == null || allUsers.Count == 0)
+    {
+        <p>Нет пользователей</p>
+    }
+    else
+    {    
+        <table class="table">
+  <thead>
+    <tr>
+      <th scope="col"></th>
+      <th scope="col">ФИО</th>
+      <th scope="col">Пол</th>
+      <th scope="col">Email</th>
+      <th scope="col">Дата рождения</th>
+      <th scope="col">Роль</th>
+      <th scope="col">Активен</th>
+      
+    </tr>
+  </thead>
+<tbody>
+@foreach (var user in filteredUsers)
+{
+    <tr class="@(user.IsRemoved ? "table-secondary" : null)">
+        <th scope="row">@user.Id</th>
+        <td>@user.FullName</td>
+        <td>@user.Gender</td>
+        <td>@user.Email</td>
+        <td>@user.DateOfBirth.ToString("dd.MM.yyyy")</td>
+        <td>@user.Role</td>
+        <td>@(user.IsRemoved ? "Нет" : "Да")</td>
+        <td>
+            @* <button type="button"
+                    class="btn btn-primary btn-sm"
+                    @onclick="() => ShowUserModal(user.Id)">
+                Подробнее
+            </button> *@
+            <button type="button"
+                    class="btn btn-primary btn-sm"
+                    @onclick="() => ShowEditUserModal(user.Id)">
+                Подробнее
+            </button>
+        </td>
+    </tr>
+}
+
+</tbody>
+</table>
+
+<p class="mt-2">Всего найдено: @filteredUsers.Count из @allUsers.Count</p>
+<div class="mt-5 bg-success text-white bg-opacity-75">
+    @message
+</div>
+    }
+</div>
+}
+@code {
+    string searchText = "";
+
+    List<UserOutputModel> allUsers = new();
+
+    //  для фильтрации
+    List<UserOutputModel> filteredUsers => GetFilteredUsers();
+
+    protected override void OnInitialized()
+    {
+        // один раз при инициализации
+        // allUsers = userManager.GetAll() ?? new List<UserOutputModel>();
+        allUsers = userManager.GetAllWithRemoved() ?? new List<UserOutputModel>();
+
+    }
+
+    // поиск по неполным ключам
+    private List<UserOutputModel> GetFilteredUsers()
+    {
+        if (string.IsNullOrWhiteSpace(searchText)) // возвращает true, если переданная строка равна null, "" или состоит только из пробельных символов
+            return allUsers; // Если поиск пустой - показываем все
+
+        // Разбиваем поисковую фразу на слова
+        var searchWords = searchText.Split(' ', StringSplitOptions.RemoveEmptyEntries);        
+
+        // Поиск по всем полям: FullName, Email, DateOfBirth
+        var searchResult = allUsers
+            .Where(p => 
+                (p.FullName != null && searchWords.All(word => 
+                    p.FullName.Contains(word, StringComparison.OrdinalIgnoreCase))) ||
+                (p.Email != null && searchWords.All(word => 
+                    p.Email.Contains(word, StringComparison.OrdinalIgnoreCase))) ||
+                (searchWords.All(word => 
+                    p.DateOfBirth.ToString("dd.MM.yyyy").Contains(word, StringComparison.OrdinalIgnoreCase)))
+            )
+            .OrderBy(p => p.IsRemoved)      // Сортируем по существующим юзерам
+            .ThenBy(p => p.FullName)        // вторичная сортировка
+            .ToList();
+        return searchResult;
+    }
+
+
+    private async Task ShowUserModal(int UserId)
+    {
+        var parameters = new Dictionary<string, object>();    
+
+        // добаление параментра в Dictionary
+        parameters.Add("UserId", UserId);
+
+        // вызов показа модального окна
+        await modal.ShowAsync<UserProfileCard>(
+            title: "Информация о пользователе",
+            parameters: parameters
+        );
+        // callback для уведомления для родительского компонента
+        parameters.Add("OnclickCallback", EventCallback.Factory.Create<MouseEventArgs>(this, ShowDTMessage));            
+
+        // callback для не настоящего удаления
+        parameters.Add("OnUserRemoved", EventCallback.Factory.Create<int>(this, ShowRemoveMessage));
+
+        // callback для удаления!
+        parameters.Add("OnUserDeleted", EventCallback.Factory.Create<int>(this, ShowDeleteMessage));
+
+        // callback для удаления!
+        parameters.Add("OnUserUpdated", EventCallback.Factory.Create<int>(this, ShowUpdateMessage));
+    }
+
+    private async Task ShowEditUserModal(int UserId)
+    {
+        var parameters = new Dictionary<string, object>();    
+
+        // добаление параментра в Dictionary
+        parameters.Add("UserId", UserId);
+
+        // вызов показа модального окна
+        await modal.ShowAsync<UserProfileEditCard>(
+            title: "Информация о пользователе",
+            parameters: parameters
+        );
+        // callback для уведомления для родительского компонента
+        parameters.Add("OnclickCallback", EventCallback.Factory.Create<MouseEventArgs>(this, ShowDTMessage));            
+
+        // callback для не настоящего удаления
+        parameters.Add("OnUserRemoved", EventCallback.Factory.Create<int>(this, ShowRemoveMessage));
+
+        // callback для удаления!
+        parameters.Add("OnUserDeleted", EventCallback.Factory.Create<int>(this, ShowDeleteMessage));
+
+        // callback для удаления!
+        parameters.Add("OnUserUpdated", EventCallback.Factory.Create<int>(this, ShowUpdateMessage));
+    }
+
+    private void ShowDTMessage(MouseEventArgs e) => message = $"Информация обновлена в: {DateTime.Now}.";
+
+    private void ShowRemoveMessage(int removedUserId)   
+    {
+        var user = allUsers.FirstOrDefault(u => u.Id == removedUserId);
+        if (user != null)      
+            //allUsers.Remove(user);
+
+            message = $"Пользователь {removedUserId} удален в: {DateTime.Now:dd.MM.yyyy HH:mm}";
+        //StateHasChanged();      // обновляем UI
+    }
+
+    private void ShowDeleteMessage(int deletedUserId)   
+    {
+        var user = allUsers.FirstOrDefault(u => u.Id == deletedUserId);
+        if (user != null)      
+            allUsers.Remove(user); // удаляем из локального списка
+
+        message = $"Пользователь {deletedUserId} навсегда удален из БД в: {DateTime.Now:dd.MM.yyyy HH:mm}";
+        //StateHasChanged();      // обновляем UI
+    }
+
+    private void ShowUpdateMessage(int userId)   
+    {       
+        message = $"Пользователь { userId} обновлен в: {DateTime.Now:dd.MM.yyyy HH:mm}";        
+    }    
+
+    [Parameter]
+    public int Id { get; set; }
+
+    private string? message;      
+
+    private Modal modal = default!;
+}

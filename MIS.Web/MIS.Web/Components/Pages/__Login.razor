@@ -1,0 +1,89 @@
+﻿@page "/login"
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Authentication
+@using Microsoft.AspNetCore.Authentication.Cookies
+@using Microsoft.AspNetCore.Components.Authorization
+
+
+@inject NavigationManager Navigation
+
+
+<div class="row justify-content-center">
+    <div class="col-md-5 col-lg-4">
+        <div class="card shadow mt-5">
+            <div class="card-header bg-primary text-white text-center">
+                <h4 class="mb-0">
+                    <i class="fas fa-sign-in-alt me-2"></i>Вход в систему
+                </h4>
+            </div>
+            <div class="card-body">
+                <EditForm Model="loginModel" OnSubmit="StartLogin" FormName="Login">
+                    <div class="mb-3">
+                        <label class="form-label">Email</label>
+                        <InputText @bind-Value="loginModel.Email" class="form-control" placeholder="mail@example.com" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Пароль</label>
+                        <InputText @bind-Value="loginModel.Password" type="password" class="form-control" placeholder="••••••••" />
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="fas fa-sign-in-alt"></i> Войти
+                    </button>
+                </EditForm>
+                <div class="text-center mt-3">
+                    <small>
+                        Нет аккаунта?
+                        <a href="/registration" class="text-decoration-none">Зарегистрируйтесь</a>
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    // [CascadingParameter]
+    // public HttpContext httpContext { get; set; }
+
+    [SupplyParameterFromForm]
+    public LoginModel loginModel { get; set; } = new LoginModel();
+
+    private UserManager userManager; 
+
+    private UserInputModel userInputModel;
+
+    
+
+    // [SupplyParameterFromQuery] 
+    public string returnUrl { get; set; } = "/";
+
+    public async void StartLogin()
+    {
+        // var claims = new List<Claim>()
+        // {
+        //     new Claim("Email", loginModel.Email),
+        //     new Claim(ClaimTypes.Role, "Client")
+        // };
+
+        // var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+        // var pr = new ClaimsPrincipal(identity);
+
+        // await httpContext.SignInAsync(pr);
+
+        // try
+        // {
+        //     Navigation.NavigateTo(returnUrl, forceLoad: true);
+        // }
+        // catch (NavigationException ex)
+        // {
+        //     // Логируем, но не бросаем дальше, чтобы UI не падал
+        //     Console.WriteLine($"NavigationException: {ex.Message}");
+
+        // }
+        var chek = userManager.AuthUser(loginModel.Email, loginModel.Password);
+        if (chek) Console.WriteLine("Упешная авторизация!");
+        else Console.WriteLine("Неудача");
+
+    }
+
+}

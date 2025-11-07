@@ -1,0 +1,205 @@
+﻿@* Для админов / Добавление новой услуги *@
+@inject MedicalServiceManager medicalServiceManager
+@inject NavigationManager Navigation
+
+@rendermode InteractiveServer
+
+@if (medicalServiceOm == null)
+{
+    return;
+}
+
+<span class="badge bg-secondary me-2">ID: @medicalServiceOm?.Id</span>
+@if (medicalServiceOm?.IsRemoved == true)
+{
+    <span class="badge bg-danger">Услуга удалена</span>
+}
+
+<div class="card-body">
+    <div class="row mb-3">
+        <div class="col-md-6">
+            <div class="mb-2">
+                <strong class="text-muted d-block">Название услуги:</strong>
+                @if (isEditing)
+                {
+                    <input @bind="medicalServiceOm.Name" class="form-control form-control-sm" placeholder="Название услуги" />
+                }
+                else
+                {
+                    <span class="fs-5 text-dark">
+                        <span class="badge bg-secondary"></span>
+                        @medicalServiceOm?.Name
+                    </span>
+                }
+            </div>
+
+            <div class="mb-2">
+                <strong class="text-muted d-block">Статус:</strong>
+                @if (medicalServiceOm?.IsRemoved == false)
+                {
+                    <span class="badge bg-success">Активна</span>
+                }
+                else
+                {
+                    <span class="badge bg-danger">Удалена</span>
+                }
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="mb-2">
+                <strong class="text-muted d-block">Цена:</strong>
+                @if (isEditing)
+                {
+                    <input type="number" step="0.01" @bind="medicalServiceOm.Price" class="form-control form-control-sm" />
+                }
+                else
+                {
+                    <span>
+                        <i class="fas fa-dollar-sign me-2 text-secondary"></i>
+                        @medicalServiceOm?.Price.ToString("C")
+                    </span>
+                }
+            </div>
+        </div>
+    </div>
+
+    <div class="row border-top pt-3">
+        <div class="col-12">
+            <div class="mb-2">
+                <strong class="text-muted d-block">Описание:</strong>
+                @if (isEditing)
+                {
+                    <textarea @bind="medicalServiceOm.Description" class="form-control form-control-sm" rows="3" placeholder="Описание услуги"></textarea>
+                }
+                else
+                {
+                    <div class="text-black mt-2 mb-0">
+                        <i class="fas fa-info-circle me-2 text-primary"></i>
+                        @if (string.IsNullOrEmpty(medicalServiceOm?.Description))
+                        {
+                            <span class="text-muted">Описание отсутствует</span>
+                        }
+                        else
+                        {
+                            @medicalServiceOm.Description
+                        }
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card-footer bg-transparent">
+    <div class="d-flex justify-content-between align-items-center">       
+
+        <div>
+            @if (isEditing)
+            {
+                <button type="button" class="btn btn-success btn-sm me-2" @onclick="SaveMedicalService">
+                    <i class="fas fa-save me-1"></i>Сохранить
+                </button>
+                <button type="button" class="btn btn-secondary btn-sm" @onclick="CancelEdit">
+                    <i class="fas fa-times me-1"></i>Отмена
+                </button>
+            }
+            else
+            {
+                <button type="button" class="btn btn-primary btn-sm me-2" @onclick="StartEditing">
+                    <i class="fas fa-edit me-1"></i>Редактировать
+                </button>
+                <button type="button" class="btn btn-warning btn-sm me-2" @onclick="() => OnRemoveMedicalService(MedicalServiceId)">
+                    Remove
+                </button>
+                <button type="button" class="btn btn-danger btn-sm" @onclick="() => OnDeleteMedicalService(MedicalServiceId)">
+                    Delete!
+                </button>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    private MedicalServiceOutputModel? medicalServiceOm;
+
+    private bool showServiceId = true;
+
+    private bool isEditing = false;
+
+
+    [Parameter] 
+    public int MedicalServiceId { get; set; }
+
+    [Parameter]
+    public EventCallback<MouseEventArgs> OnClickCallback { get; set; }
+
+    [Parameter]
+    public EventCallback<int> OnMedicalServiceRemoved { get; set; }
+
+    [Parameter]
+    public EventCallback<int> OnMedicalServiceDeleted { get; set; }
+
+    [Parameter]
+    public EventCallback<int> OnMedicalServiceUpdated { get; set; }
+
+    protected override void OnInitialized()
+    {
+        medicalServiceOm = medicalServiceManager.GetById(MedicalServiceId);
+        base.OnInitialized();
+    }
+
+    private void ToggleServiceIdVisibility()
+    {
+        showServiceId = !showServiceId;
+    }
+
+    private void StartEditing()
+    {
+        if (medicalServiceOm != null)
+        {
+            medicalServiceOm = new MedicalServiceOutputModel
+            {
+                Id = medicalServiceOm.Id,
+                Name = medicalServiceOm.Name,
+                Description = medicalServiceOm.Description,
+                Price = medicalServiceOm.Price,
+                IsRemoved = medicalServiceOm.IsRemoved
+            };
+            isEditing = true;
+        }
+    }
+
+    private async Task SaveMedicalService()
+    {
+        if (medicalServiceOm != null)
+        {
+            var updated = medicalServiceManager.Update(MedicalServiceId, medicalServiceOm);
+            if (updated)
+            {
+                isEditing = false;
+                await OnMedicalServiceUpdated.InvokeAsync(MedicalServiceId);
+                StateHasChanged();
+            }
+        }
+    }
+
+    private void CancelEdit()
+    {
+        isEditing = false;
+    }
+
+    private async Task OnRemoveMedicalService(int id)
+    {
+        var removed = medicalServiceManager.Remove(id);
+        if (removed)
+            await OnMedicalServiceRemoved.InvokeAsync(id);
+    }
+
+    private async Task OnDeleteMedicalService(int id)
+    {
+        var deleted = medicalServiceManager.Delete(id);
+        if (deleted)
+            await OnMedicalServiceDeleted.InvokeAsync(id);
+    }
+}

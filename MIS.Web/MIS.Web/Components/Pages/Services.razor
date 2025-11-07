@@ -1,0 +1,241 @@
+﻿@page "/services"
+
+@using MIS.Web.Components.Cards
+@using MIS.Web.Components.Layout
+
+@inject MedicalServiceManager medicalServiceManager
+@inject OrderManager orderManager
+@inject NavigationManager Navigation
+@inherits AuthChekComponent
+
+@rendermode InteractiveServer
+
+
+<h3>Медицинские услуги</h3>
+
+<!-- Компонент поиска -->
+<SearchComponent @bind-Search="searchText" />
+
+<!-- Компонент модального окна -->
+<Modal @ref="modal" />
+
+<div class="mt-3">
+        <p><strong>@searchText</strong></p>   <!-- Выводим поисковый запрос -->
+
+        @if (allProducts == null || !allProducts.Any())
+        {
+            <div class="text-center">
+                <div class="spinner-border text-primary" role="status"></div>
+                <p>Ничего нет…</p>
+            </div>
+        }
+        else
+        {   
+            <ul class="list-group">
+            @if (IsAdmin)
+            {
+              <div class="d-flex justify-content-lg-start mb-2">
+                     <button type="button" class="btn btn-secondary" @onclick="AddNewProduct">
+                         Новая услуга
+                     </button>
+                </div>  
+            }
+                
+
+                @foreach (var product in filteredProducts)
+                {
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <div>
+                            <strong>@product.Name</strong> – @product.Price руб.
+                            <small class="d-block text-muted">@product.Description</small>
+                        </div>
+
+                        <div class="btn-group btn-group-sm" role="group">
+                            <button type="button"
+                                    class="btn btn-primary"
+                                    @onclick="() => ShowProductModal(product.Id)">
+                                Подробнее
+                            </button>
+                            @if (IsAdmin)
+                            {
+                            <button type="button"
+                                    class="btn btn-warning"
+                                    @onclick="() => ShowEditProductModal(product.Id)">
+                                Редактировать
+                            </button>
+                            }
+                                                        
+                            <button type="button"
+                                    class="btn btn-danger"
+                                    @onclick="() => AddToOrder(product)">
+                                В заказ
+                            </button>
+                        </div>
+                    </li>
+                }
+            </ul>
+
+            <p class="mt-2">
+                Найдено: @filteredProducts.Count из @allProducts.Count
+            </p>
+        }
+    </div>
+
+    @if (!string.IsNullOrEmpty(message))
+    {
+        @* <div class="alert alert-info mt-3"> *@
+        <div class="alert alert-info alert-top" role="alert">
+            @message
+        </div>
+    }
+
+
+
+@code {
+    string searchText = "";
+
+    List<MedicalServiceOutputModel> allProducts = new();
+
+    OrderOutputModel orderOm = new();
+
+    private string? message; 
+
+    private Modal modal = default!;
+
+    // для фильтрации
+    List<MedicalServiceOutputModel> filteredProducts => GetFilteredProducts();
+
+    protected override void OnInitialized()
+    {
+        allProducts = medicalServiceManager.GetAll() ?? new List<MedicalServiceOutputModel>();
+    }
+
+    private List<MedicalServiceOutputModel> GetFilteredProducts()
+    {
+        if (string.IsNullOrWhiteSpace(searchText))
+            return allProducts;
+
+        var searchWords = searchText.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+
+        var searchResult = allProducts
+         .Where(p => p.Name != null && 
+                    searchWords.All(word => 
+                        p.Name.Contains(word, StringComparison.OrdinalIgnoreCase)))
+         .ToList();
+        return searchResult;
+    }
+
+    private async Task ShowProductModal(int productId)
+    {
+        var parameters = new Dictionary<string, object>();       
+
+        // Добавляем ВСЕ параметры ПЕРЕД вызовом ShowAsync
+        parameters.Add("MedicalServiceId", productId);
+        parameters.Add("OnClickCallback", EventCallback.Factory.Create<MouseEventArgs>(this, ShowDTMessage));
+        parameters.Add("OnMedicalServiceRemoved", EventCallback.Factory.Create<int>(this, ShowRemoveMessage));
+        parameters.Add("OnMedicalServiceDeleted", EventCallback.Factory.Create<int>(this, ShowDeleteMessage));
+        parameters.Add("OnMedicalServiceUpdated", EventCallback.Factory.Create<int>(this, ShowUpdateMessage));
+
+        // Вызов показа модального окна с параметрами
+        await modal.ShowAsync<MedicalServiceProfileCard>(
+            title: "Информация об услуге",
+            parameters: parameters
+        );
+
+        Console.WriteLine("Modal shown for product: " + productId);
+    }
+
+    private async Task ShowEditProductModal(int productId)
+    {
+        var parameters = new Dictionary<string, object>();
+
+        parameters.Add("MedicalServiceId", productId);
+        parameters.Add("OnMedicalServiceUpdated", EventCallback.Factory.Create<int>(this, ShowUpdateMessage));
+
+        await modal.ShowAsync<MedicalServiceEditProfileCard>(
+             title: "Редактирование услуги",
+             parameters: parameters
+         );
+    }
+
+    private void ShowDTMessage(MouseEventArgs e) => message = $"Информация обновлена в: {DateTime.Now}.";
+
+    private void ShowRemoveMessage(int removedId)   
+    {
+        var product = allProducts.FirstOrDefault(u => u.Id == removedId);
+        if (product != null)      
+            message = $"Услуга {removedId} удалена в: {DateTime.Now:dd.MM.yyyy HH:mm}";
+        StateHasChanged();
+    }
+
+    private void ShowDeleteMessage(int deletedId)   
+    {
+        var product = allProducts.FirstOrDefault(u => u.Id == deletedId);
+        if (product != null)      
+            allProducts.Remove(product);
+
+        message = $"Услуга {deletedId} навсегда удалена из БД в: {DateTime.Now:dd.MM.yyyy HH:mm}";
+        StateHasChanged();
+    }
+
+    private void ShowUpdateMessage(int productId)   
+    {       
+        message = $"Услуга {productId} обновлена в: {DateTime.Now:dd.MM.yyyy HH:mm}";
+        StateHasChanged();
+    }
+
+    private async Task AddToOrder(MedicalServiceOutputModel product)
+    {
+        if (!IsAuthenticated) 
+        {
+            message = "Для создания заказа, пожалуйста зарегистрируйтесь!";
+            Thread.Sleep(1000);
+            Navigation.NavigateTo("/registration", forceLoad: true);  
+            return;
+        }
+
+        var currentUserId = CurrentUser.Id;
+        if (currentUserId == null) return;
+
+        var orderInput = new OrderInputModel
+            {
+                Date = DateTime.Now,
+                OrderStatus = OrderStatus.New,                
+                TotalAmount = product.Price,
+                UserId = currentUserId,
+                MedicalServiceId = product.Id
+            };
+
+        var newOrder = orderManager.Add(orderInput);
+        ShowAddMessage(newOrder.MedicalServiceId, newOrder.Id);
+    }
+
+    private void ShowAddMessage(int productId, int orderId)   
+    {       
+        message = $"Создан заказ (ID: {orderId}), ID услуги: {productId}, в: {DateTime.Now:dd.MM.yyyy HH:mm},";
+        StateHasChanged();
+    }
+
+    private async Task AddNewProduct()
+    {
+        var parameters = new Dictionary<string, object>();
+        {
+            // единственный параметр, который реально использует AddMedicalServiceCard
+            parameters.Add("OnServiceCreated", EventCallback.Factory.Create<int>(this, ShowCreateMessage));
+        };
+
+        await modal.ShowAsync<AddMedicalServiceCard>(
+            title: "Добавить новую услугу",
+            parameters: parameters);
+    }
+
+    private void ShowCreateMessage(int productId)   
+    {               
+        message = $"Новая услуга (ID: {productId}) добавлена";        
+        StateHasChanged();
+        Thread.Sleep(1000);
+        modal.Close();
+    }
+    
+    
+}

@@ -1,0 +1,239 @@
+﻿
+@inject UserManager userManager
+@inject NavigationManager Navigation
+
+@rendermode InteractiveServer
+
+<span class="badge bg-secondary me-2">ID: @userOm?.Id</span>
+@if (userOm?.IsRemoved == true)
+{
+    <span class="badge bg-danger">Пользователь удален</span>
+}
+    <div class="card-body">
+        <!-- Основная информация в две колонки -->
+        <div class="row mb-3">
+            <div class="col-md-6">
+                <div class="mb-2">
+                    <strong class="text-muted d-block">Имя и Фамилия:</strong>
+                    <span class="fs-5 text-dark">
+                    <span class="badge bg-secondary"></span>
+                        @userOm?.FullName
+                    </span>
+                </div>
+                <div class="mb-2">
+                    <strong class="text-muted d-block">Роль:</strong>        
+                @if (userOm?.Role == UserRole.Client)
+                {
+                    <span class="badge bg-success">
+                        @userOm?.Role
+                    </span>
+                }
+                @if (userOm?.Role == UserRole.Admin)
+                {
+                    <span class="badge bg-warning text-dark">
+                        @userOm?.Role
+                    </span>
+                }
+                @if ((userOm?.Role != UserRole.Admin) && (userOm?.Role != UserRole.Client))
+                {
+                    <span class="badge bg-primary">
+                        @userOm?.Role
+                    </span>
+                }                               
+                </div>
+                <div class="mb-2">
+                    <strong class="text-muted d-block">Пол:</strong>
+                    <span>
+                       @userOm?.Gender
+                    </span>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="mb-2">
+                    <strong class="text-muted d-block">Дата регистрации:</strong>
+                    <span>
+                        @userOm?.RegistrationDate.ToString("dd.MM.yyyy HH:mm")                       
+                    </span>
+                </div>
+                <div class="mb-2">
+                    <strong class="text-muted d-block">Дата рождения:</strong>
+                    <span>
+                        <i class="fas fa-birthday-cake me-2 text-secondary"></i>
+                        @userOm?.DateOfBirth.ToString("dd.MM.yyyy")
+                        <small class="text-muted ms-2">
+                            (Возраст: @(userOm != null ? (DateTime.Now.Year - userOm.DateOfBirth.Year) : 0)) @* рассчитываем *@
+                        </small>
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Контактная информация -->
+        <div class="row border-top pt-3">
+            <div class="col-md-6">
+                <div class="mb-2">
+                    <strong class="text-muted d-block">Email:</strong>
+                    <span>
+                        <i class="fas fa-envelope me-2 text-secondary"></i>
+                        @userOm?.Email
+                    </span>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="mb-2">
+                    <strong class="text-muted d-block">Телефон:</strong>
+                    <span>
+                        <i class="fas fa-phone me-2 text-secondary"></i>
+                        @userOm?.PhoneNumber
+                    </span>
+                </div>
+            </div>
+        </div>
+
+    <!-- Защищенная информация -->
+    <div class="row border-top pt-3">
+        <div class="col-12">
+            <div class="alert alert-warning mb-0">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <strong class="text-muted">Пароль:</strong>
+                        <span class="ms-2">
+                            <i class="fas fa-lock me-1"></i>
+                            @if (showPassword)
+                            {
+                                @userOm?.Password
+                            }
+                            else
+                            {
+                                <span>••••••••</span>
+                            }
+                        </span>
+                    </div>
+                    <button type="button"
+                            class="btn btn-outline-secondary btn-sm"
+                            @onclick="TogglePasswordVisibility">
+                        @if (showPassword)
+                        {
+                            @:Скрыть
+                        }
+                        else
+                        {
+                           @:Показать
+                        }
+
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    </div>
+    <div class="card-footer bg-transparent">
+        <div class="d-flex justify-content-between align-items-center">
+            <small class="text-muted">
+                Обновлен: @DateTime.Now.ToString("dd.MM.yyyy HH:mm")
+            </small>
+            <button type="button" class="btn btn-primary btn-sm" @onclick="OnClickCallback">            
+                Open Details
+            </button>
+        <button type="button" class="btn btn-primary btn-sm" @onclick="() => OnRemoveUser(UserId)">
+            Remove
+        </button>
+        <button type="button" class="btn btn-primary btn-sm" @onclick="() => OnDeleteUser(UserId)">
+            Delete!
+        </button>
+        <button type="button" class="btn btn-primary btn-sm" @onclick="() => OnActivateUser(UserId)">
+            Activate
+        </button>
+        <button type="button" class="btn btn-primary btn-sm" @onclick="() => OnSetRoleToAdmin(UserId)">
+            Change Role
+        </button>
+      
+        </div>
+    </div>
+
+
+@code {
+    private UserOutputModel? userOm;
+
+    private bool showPassword = false; // Флаг для отображения пароля
+
+    [Parameter] 
+    public int UserId { get; set; }
+
+    [Parameter]
+    public EventCallback<MouseEventArgs> OnClickCallback { get; set; }
+
+    [Parameter]
+    public EventCallback<int> OnUserRemoved { get; set; }
+
+    [Parameter]
+    public EventCallback<int> OnUserDeleted { get; set; }
+
+    [Parameter]
+    public EventCallback<int> OnUserUpdated { get; set; }
+
+
+    protected override void OnInitialized()
+    {
+        userOm = userManager.GetById(UserId);
+        base.OnInitialized();
+    }
+
+    // Видиомсть пароля
+    private void TogglePasswordVisibility()
+    {
+        showPassword = !showPassword;
+    }
+
+    // Пометка IsRemoved = true
+    private async Task OnRemoveUser(int userId)
+    {        
+        var removed = userManager.Remove(userId);
+        if (removed)
+        {
+            // Уведомляем родительский компонент об удалении
+            await OnUserRemoved.InvokeAsync(userId);
+        }      
+    }
+
+    // Окончательное удаление пользователя
+    private async Task OnDeleteUser(int userId)
+    {
+        var deleted= userManager.Delete(userId);
+        if (deleted)
+        {
+            // Уведомляем родительский компонент об удалении
+            await OnUserDeleted.InvokeAsync(userId);
+        }
+
+    }
+
+    // Восстановление пользователя из мертвых
+    private async Task OnActivateUser(int userId)
+    {
+        var userOm = userManager.GetById(userId);
+        userOm.IsRemoved = false;
+        var updaetd = userManager.Update(userId, userOm);
+
+        if (updaetd)
+        {
+            // Уведомляем родительский компонент об удалении
+            await OnUserUpdated.InvokeAsync(userId);
+        }           
+    }
+
+    //OnSetRoleToAdmin
+    private async Task OnSetRoleToAdmin(int userId)
+    {
+        var userOm = userManager.GetById(userId);
+        userOm.Role = UserRole.Admin;
+        var updaetd = userManager.Update(userId, userOm);
+
+        if (updaetd)
+        {
+            // Уведомляем родительский компонент об удалении
+            await OnUserUpdated.InvokeAsync(userId);
+            StateHasChanged();
+        }
+    }
+}
