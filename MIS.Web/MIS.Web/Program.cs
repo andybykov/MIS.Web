@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Authentication;
+﻿
 using Microsoft.AspNetCore.Authentication.Cookies;
 using MIS.BLL;
 using MIS.Core;
@@ -8,6 +8,7 @@ using MIS.Web.Components;
 using MIS.Web.IRepositories;
 
 namespace MIS.Web
+
 {
     public class Program
     {
@@ -19,7 +20,7 @@ namespace MIS.Web
             builder.Services.AddRazorComponents()
                 .AddInteractiveServerComponents()
                 .AddInteractiveWebAssemblyComponents();
-            
+
             builder.Services.AddAuthorization();
             builder.Services.AddCascadingAuthenticationState();
 
@@ -89,7 +90,7 @@ namespace MIS.Web
                 .AddAdditionalAssemblies(typeof(Client._Imports).Assembly);
 
             app.Run();
-            
+
         }
     }
 }

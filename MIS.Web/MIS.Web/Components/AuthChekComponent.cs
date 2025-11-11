@@ -1,6 +1,5 @@
 ﻿using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Authorization;
-using Microsoft.AspNetCore.Identity;
 using MIS.BLL;
 using MIS.Core;
 using MIS.Core.OutputModels;
@@ -21,7 +20,7 @@ namespace MIS.Web.Components
 
         protected bool IsAdmin { get; private set; } = false;
 
-    
+
         protected override async Task OnInitializedAsync()
         {
             await CheckAuthentication();
@@ -40,8 +39,8 @@ namespace MIS.Web.Components
                 if (IsAuthenticated)
                 {
                     var login = user.Identity.Name;
-                    CurrentUser = UserManager.GetByLogin(login) ?? new UserOutputModel();                                  
-                    IsAdmin = UserManager.HasRole(CurrentUser.Id, UserRole.Admin);                  
+                    CurrentUser = UserManager.GetByLogin(login) ?? new UserOutputModel();
+                    IsAdmin = UserManager.HasRole(CurrentUser.Id, UserRole.Admin);
 
                 }
             }
