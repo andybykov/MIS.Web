@@ -1,14 +1,11 @@
 ﻿using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
-using Microsoft.Extensions.Options;
 using MIS.BLL;
 using MIS.Core;
-using MIS.Core.InputModels;
 using MIS.Core.IRepositories;
 using MIS.DAL;
 using MIS.Web.Components;
 using MIS.Web.IRepositories;
-using System.Security.Claims;
 
 namespace MIS.Web
 {
